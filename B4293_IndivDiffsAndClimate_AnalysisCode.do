@@ -12,7 +12,7 @@ cd "X:\Studies\RSBB Team\Dan\B4293 - MSc Environmental Behaviors"
 ** Create log file
 log using "./Results/IndivDiffsAndClimate.log", replace
 
-** Read in dataset
+** Read in dataset (NOTE: If using the synthetic dataset, read in the dataset on line 666 of this script)
 use "EnvironBehav_B4293.dta", clear
 
 
@@ -658,6 +658,13 @@ tab total_actions, m
 sum total_actions
 
 drop total_miss
+
+
+** Save file here for synthesising
+save "B4293_ReligionAndClimate_forSynth.dta", replace
+
+** If following along using the synthetic dataset, read this in here (note that this only includes the 2,655 observations with complete confounder data, plus any exposure data and any outcome data):
+*use "./AnalysisCode_B4293/SyntheticData/syntheticData_B4293.dta", clear
 
 
 *****************************************************************************
