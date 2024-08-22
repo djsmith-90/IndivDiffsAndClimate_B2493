@@ -17150,7 +17150,7 @@ twoway (scatter p1 agree, col(black) msym(D) msize(vsmall) ///
 
 *** Conscientiousness
 
-* Linear model unadjusted
+* Poisson model unadjusted
 poisson total_actions consc if cca_confounders == 1, irr
 
 * And for adjusted model
@@ -17182,7 +17182,7 @@ twoway (scatter p1 consc, col(black) msym(D) msize(vsmall) ///
 	
 *** Emotional stability
 
-* Linear model unadjusted
+* Poisson model unadjusted
 poisson total_actions emoStab if cca_confounders == 1, irr
 
 * And for adjusted model
@@ -17214,7 +17214,7 @@ twoway (scatter p1 emoStab, col(black) msym(D) msize(vsmall) ///
 
 *** Openness to experience
 
-* Linear model unadjusted
+* Poisson model unadjusted
 poisson total_actions open if cca_confounders == 1, irr
 
 * And for adjusted model
@@ -17246,7 +17246,7 @@ twoway (scatter p1 open, col(black) msym(D) msize(vsmall) ///
 
 *** IQ
 
-* Linear model unadjusted
+* Poisson model unadjusted
 poisson total_actions iq if cca_confounders == 1, irr
 
 * And for adjusted model
@@ -17286,8 +17286,8 @@ graph close _all
 *** Creating post-file to store results to
 capture postclose totalActions_p
 postfile totalActions_p str30 exposure str30 outcome /// 
-	n coef_uni lci_uni uci_uni double(p_uni) r2_uni ///
-	coef_mult lci_mult uci_mult double(p_mult) r2_mult ///
+	n coef_uni lci_uni uci_uni double(p_uni) r2_uni aic_uni bic_uni ///
+	coef_mult lci_mult uci_mult double(p_mult) r2_mult aic_mult bic_mult ///
 	using ".\Results\totalActions_p.dta", replace
 
 foreach var of varlist extra agree consc emoStab open iq {
@@ -17313,6 +17313,11 @@ foreach var of varlist extra agree consc emoStab open iq {
 	local uci_uni = res[6,1]
 	local p_uni = res[4,1]
 	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_uni = r(S)[1,5]
+	local bic_uni = r(S)[1,6]
+	
 	
 	** Multivariable analysis - Repeat with and without exposure to get change in pseudo-R2 and LR test results
 	poisson total_actions i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge if `var' != ., irr
@@ -17329,10 +17334,16 @@ foreach var of varlist extra agree consc emoStab open iq {
 	local uci_mult = res[6,1]
 	local p_mult = res[4,1]
 	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_mult = r(S)[1,5]
+	local bic_mult = r(S)[1,6]
+	
 	** Post these summary results to the file
 	post totalActions_p ("`exp'") ("`out'") (`n') /// 
-		(`coef_uni') (`lci_uni') (`uci_uni') (`p_uni') (`r2_uni') (`coef_mult') ///
-		(`lci_mult') (`uci_mult') (`p_mult') (`r2_mult')
+		(`coef_uni') (`lci_uni') (`uci_uni') (`p_uni') (`r2_uni') ///
+		(`aic_uni') (`bic_uni') (`coef_mult') (`lci_mult') (`uci_mult') ///
+		(`p_mult') (`r2_mult') (`aic_mult') (`bic_mult')
 				
 }
 
@@ -17342,6 +17353,283 @@ postclose totalActions_p
 use ".\Results\totalActions_p.dta", clear
 
 export delimited using ".\Results\totalActions_p.csv", replace
+
+
+** Read back in original dataset
+use "B4293_ReligionAndClimate_Processed.dta", clear
+
+
+
+**** Negative binomial models
+
+*** Extraversion 
+
+* Negative binomial model unadjusted
+nbreg total_actions extra if cca_confounders == 1, irr
+
+* And for adjusted model
+nbreg total_actions extra i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, irr
+
+* Predicted outcomes
+sum extra if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(extra = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 extra, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 extra, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Extraversion", size(medium)) ///
+	legend(off) ///
+	name(extra_actions_nb, replace)
+
+
+*** Agreeableness 
+
+* Negative binomial model unadjusted
+nbreg total_actions agree if cca_confounders == 1, irr
+
+* And for adjusted model
+nbreg total_actions agree i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, irr
+
+* Predicted outcomes
+sum agree if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(agree = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 agree, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 agree, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Agreeableness", size(medium)) ///
+	legend(off) ///
+	name(agree_actions_nb, replace)
+	
+	
+
+*** Conscientiousness
+
+* Negative binomial model unadjusted
+nbreg total_actions consc if cca_confounders == 1, irr
+
+* And for adjusted model
+nbreg total_actions consc i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, irr
+
+* Predicted outcomes
+sum consc if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(consc = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 consc, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 consc, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Conscientiousness", size(medium)) ///
+	legend(off) ///
+	name(consc_actions_nb, replace)
+
+	
+	
+*** Emotional stability
+
+* Negative binomial model unadjusted
+nbreg total_actions emoStab if cca_confounders == 1, irr
+
+* And for adjusted model
+nbreg total_actions emoStab i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, irr
+
+* Predicted outcomes
+sum emoStab if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(emoStab = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 emoStab, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 emoStab, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Emotional Stability", size(medium)) ///
+	legend(off) ///
+	name(emoStab_actions_nb, replace)
+	
+
+
+*** Openness to experience
+
+* Negative binomial model unadjusted
+nbreg total_actions open if cca_confounders == 1, irr
+
+* And for adjusted model
+nbreg total_actions open i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, irr
+
+* Predicted outcomes
+sum open if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(open = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 open, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 open, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Openness to experience", size(medium)) ///
+	legend(off) ///
+	name(open_actions_nb, replace)
+	
+
+
+*** IQ
+
+* Negative binomial model unadjusted
+nbreg total_actions iq if cca_confounders == 1, irr
+
+* And for adjusted model
+nbreg total_actions iq i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, irr
+
+* Predicted outcomes
+sum iq if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(iq = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 iq, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 iq, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("IQ scores", size(medium)) ///
+	legend(off) ///
+	name(iq_actions_nb, replace)
+	
+
+** Combine graphs together
+graph combine extra_actions_nb agree_actions_nb consc_actions_nb emoStab_actions_nb open_actions_nb iq_actions_nb, rows(2) imargin(tiny) ycommon
+
+graph export ".\Results\totalActions_negbin_predOutcomes.pdf", replace
+
+graph close _all
+
+
+*** Creating post-file to store results to
+capture postclose totalActions_nb
+postfile totalActions_nb str30 exposure str30 outcome /// 
+	n coef_uni lci_uni uci_uni double(p_uni) r2_uni aic_uni bic_uni ///
+	coef_mult lci_mult uci_mult double(p_mult) r2_mult aic_mult bic_mult ///
+	using ".\Results\totalActions_nb.dta", replace
+
+foreach var of varlist extra agree consc emoStab open iq {
+	
+	* Store exposure variable as a macro
+	local exp = "`var'"
+	
+	* Store outcome as macro
+	local out = "total_actions"
+	
+	** Univariable analysis
+	nbreg total_actions `var' if cca_confounders == 1, irr
+	
+	* Store relevant summary statistics
+	local n = e(N)
+	local r2_uni = e(r2_p)
+	
+	* Store coefficients
+	matrix res = r(table)
+	
+	local coef_uni = res[1,1]
+	local lci_uni = res[5,1]	
+	local uci_uni = res[6,1]
+	local p_uni = res[4,1]
+	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_uni = r(S)[1,5]
+	local bic_uni = r(S)[1,6]
+	
+	
+	** Multivariable analysis - Repeat with and without exposure to get change in pseudo-R2 and LR test results
+	nbreg total_actions i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge if `var' != ., irr
+	local r2_mult_base = e(r2_p)
+	
+	nbreg total_actions `var' i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, irr
+	local r2_mult = e(r2_p) - `r2_mult_base'
+	
+	* Store coefficients
+	matrix res = r(table)
+	
+	local coef_mult = res[1,1]
+	local lci_mult = res[5,1]	
+	local uci_mult = res[6,1]
+	local p_mult = res[4,1]
+	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_mult = r(S)[1,5]
+	local bic_mult = r(S)[1,6]
+	
+	** Post these summary results to the file
+	post totalActions_nb ("`exp'") ("`out'") (`n') /// 
+		(`coef_uni') (`lci_uni') (`uci_uni') (`p_uni') (`r2_uni') ///
+		(`aic_uni') (`bic_uni') (`coef_mult') (`lci_mult') (`uci_mult') ///
+		(`p_mult') (`r2_mult') (`aic_mult') (`bic_mult')
+				
+}
+
+postclose totalActions_nb
+
+* Check results
+use ".\Results\totalActions_nb.dta", clear
+
+export delimited using ".\Results\totalActions_nb.csv", replace
 
 
 ** Read back in original dataset
@@ -17416,7 +17704,7 @@ twoway (scatter p1 agree, col(black) msym(D) msize(vsmall) ///
 
 *** Conscientiousness
 
-* Zero-inflated Linear model unadjusted
+* Zero-inflated Poisson model unadjusted
 zip total_actions consc if cca_confounders == 1, inflate(consc) irr
 
 * And for adjusted model
@@ -17448,7 +17736,7 @@ twoway (scatter p1 consc, col(black) msym(D) msize(vsmall) ///
 	
 *** Emotional stability
 
-* Zero-inflated Linear model unadjusted
+* Zero-inflated Poisson model unadjusted
 zip total_actions emoStab if cca_confounders == 1, inflate(emoStab) irr
 
 * And for adjusted model
@@ -17480,7 +17768,7 @@ twoway (scatter p1 emoStab, col(black) msym(D) msize(vsmall) ///
 
 *** Openness to experience
 
-* Zero-inflated Linear model unadjusted
+* Zero-inflated Poisson model unadjusted
 zip total_actions open if cca_confounders == 1, inflate(open) irr
 
 * And for adjusted model
@@ -17512,7 +17800,7 @@ twoway (scatter p1 open, col(black) msym(D) msize(vsmall) ///
 
 *** IQ
 
-* Zero-inflated Linear model unadjusted
+* Zero-inflated Poisson model unadjusted
 zip total_actions iq if cca_confounders == 1, inflate(iq) irr
 
 * And for adjusted model
@@ -17553,9 +17841,9 @@ graph close _all
 capture postclose totalActions_zip
 postfile totalActions_zip str30 exposure str30 outcome /// 
 	n coef_uni_pois lci_uni_pois uci_uni_pois double(p_uni_pois) ///
-	coef_uni_zi lci_uni_zi uci_uni_zi double(p_uni_zi) ///
+	coef_uni_zi lci_uni_zi uci_uni_zi double(p_uni_zi) aic_uni bic_uni ///
 	coef_mult_pois lci_mult_pois uci_mult_pois double(p_mult_pois) ///
-	coef_mult_zi lci_mult_zi uci_mult_zi double(p_mult_zi) ///
+	coef_mult_zi lci_mult_zi uci_mult_zi double(p_mult_zi) aic_mult bic_mult ///
 	using ".\Results\totalActions_zip.dta", replace
 
 foreach var of varlist extra agree consc emoStab open iq {
@@ -17585,6 +17873,11 @@ foreach var of varlist extra agree consc emoStab open iq {
 	local uci_uni_zi = exp(res[6,3])
 	local p_uni_zi = res[4,3]
 	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_uni = r(S)[1,5]
+	local bic_uni = r(S)[1,6]
+	
 	
 	** Multivariable analysis	
 	zip total_actions `var' i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(`var' i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
@@ -17602,12 +17895,19 @@ foreach var of varlist extra agree consc emoStab open iq {
 	local uci_mult_zi = exp(res[6,23])
 	local p_mult_zi = res[4,23]
 	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_mult = r(S)[1,5]
+	local bic_mult = r(S)[1,6]
+	
 	** Post these summary results to the file
 	post totalActions_zip ("`exp'") ("`out'") (`n') /// 
 		(`coef_uni_pois') (`lci_uni_pois') (`uci_uni_pois') (`p_uni_pois') ///
 		(`coef_uni_zi') (`lci_uni_zi') (`uci_uni_zi') (`p_uni_zi') ///
-		(`coef_mult_pois') (`lci_mult_pois') (`uci_mult_pois') (`p_mult_pois') ///
-		(`coef_mult_zi') (`lci_mult_zi') (`uci_mult_zi') (`p_mult_zi')
+		(`aic_uni') (`bic_uni') ///
+		(`coef_mult_pois') (`lci_mult_pois') (`uci_mult_pois') ///
+		(`p_mult_pois') (`coef_mult_zi') (`lci_mult_zi') (`uci_mult_zi') ///
+		(`p_mult_zi') (`aic_mult') (`bic_mult')
 				
 }
 
@@ -17617,6 +17917,293 @@ postclose totalActions_zip
 use ".\Results\totalActions_zip.dta", clear
 
 export delimited using ".\Results\totalActions_zip.csv", replace
+
+
+** Read back in original dataset
+use "B4293_ReligionAndClimate_Processed.dta", clear
+
+
+
+**** Zero-inflated negative binomial models
+
+*** Extraversion 
+
+* Zero-inflated negative binomial model unadjusted
+zinb total_actions extra if cca_confounders == 1, inflate(extra) irr
+
+* And for adjusted model
+zinb total_actions extra i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(extra i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
+
+* Predicted outcomes
+sum extra if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(extra = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 extra, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 extra, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Extraversion", size(medium)) ///
+	legend(off) ///
+	name(extra_actions_zinb, replace)
+
+
+*** Agreeableness 
+
+* Zero-inflated negative binomial model unadjusted
+zinb total_actions agree if cca_confounders == 1, inflate(agree) irr
+
+* And for adjusted model
+zinb total_actions agree i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(agree i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
+
+* Predicted outcomes
+sum agree if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(agree = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 agree, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 agree, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Agreeableness", size(medium)) ///
+	legend(off) ///
+	name(agree_actions_zinb, replace)
+	
+	
+
+*** Conscientiousness
+
+* Zero-inflated negative binomial model unadjusted
+zinb total_actions consc if cca_confounders == 1, inflate(consc) irr
+
+* And for adjusted model
+zinb total_actions consc i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(consc i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
+
+* Predicted outcomes
+sum consc if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(consc = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 consc, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 consc, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Conscientiousness", size(medium)) ///
+	legend(off) ///
+	name(consc_actions_zinb, replace)
+
+	
+	
+*** Emotional stability
+
+* Zero-inflated negative binomial model unadjusted
+zinb total_actions emoStab if cca_confounders == 1, inflate(emoStab) irr
+
+* And for adjusted model
+zinb total_actions emoStab i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(emoStab i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
+
+* Predicted outcomes
+sum emoStab if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(emoStab = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 emoStab, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 emoStab, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Emotional Stability", size(medium)) ///
+	legend(off) ///
+	name(emoStab_actions_zinb, replace)
+	
+
+
+*** Openness to experience
+
+* Zero-inflated negative binomial model unadjusted
+zinb total_actions open if cca_confounders == 1, inflate(open) irr
+
+* And for adjusted model
+zinb total_actions open i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(open i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
+
+* Predicted outcomes
+sum open if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(open = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 open, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 open, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("Openness to experience", size(medium)) ///
+	legend(off) ///
+	name(open_actions_zinb, replace)
+	
+
+
+*** IQ
+
+* Zero-inflated negative binomial model unadjusted
+zinb total_actions iq if cca_confounders == 1, inflate(iq) irr
+
+* And for adjusted model
+zinb total_actions iq i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(iq i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
+
+* Predicted outcomes
+sum iq if cca_confounder == 1 & total_actions != .
+local mean = r(mean)
+local lower_sd = r(mean) - r(sd)
+local upper_sd = r(mean) + r(sd)
+di "1 SD lower = " `lower_sd' "; Mean = " `mean' "; 1 SD higher = " `upper_sd'
+margins, at(iq = (`lower_sd', `mean', `upper_sd'))
+
+* Plot of predicted outcomes
+capture drop p1
+predict p1 if total_actions != .
+sum p1
+
+twoway (scatter p1 iq, col(black) msym(D) msize(vsmall) ///
+	jitter(2) jitterseed(1234)) ///
+	(lfitci p1 iq, ciplot(rline) lwidth(medthick)), ///
+	xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+	xtitle("") ytitle("Predicted number of actions") ///
+	title("IQ scores", size(medium)) ///
+	legend(off) ///
+	name(iq_actions_zinb, replace)
+	
+
+** Combine graphs together
+graph combine extra_actions_zinb agree_actions_zinb consc_actions_zinb emoStab_actions_zinb open_actions_zinb iq_actions_zinb, rows(2) imargin(tiny) ycommon
+
+graph export ".\Results\totalActions_zinb_predOutcomes.pdf", replace
+
+graph close _all
+
+
+*** Creating post-file to store results to - Note that peusdo-R2 stats not available for zero-inflated poisson models, nore can do LR test
+capture postclose totalActions_zinb
+postfile totalActions_zinb str30 exposure str30 outcome /// 
+	n coef_uni_pois lci_uni_pois uci_uni_pois double(p_uni_pois) ///
+	coef_uni_zi lci_uni_zi uci_uni_zi double(p_uni_zi) aic_uni bic_uni ///
+	coef_mult_pois lci_mult_pois uci_mult_pois double(p_mult_pois) ///
+	coef_mult_zi lci_mult_zi uci_mult_zi double(p_mult_zi) aic_mult bic_mult ///
+	using ".\Results\totalActions_zinb.dta", replace
+
+foreach var of varlist extra agree consc emoStab open iq {
+	
+	* Store exposure variable as a macro
+	local exp = "`var'"
+	
+	* Store outcome as macro
+	local out = "total_actions"
+	
+	** Univariable analysis
+	zinb total_actions `var' if cca_confounders == 1, inflate(`var') irr
+	
+	* Store relevant summary statistics
+	local n = e(N)
+	
+	* Store coefficients
+	matrix res = r(table)
+	
+	local coef_uni_pois = res[1,1]
+	local lci_uni_pois = res[5,1]	
+	local uci_uni_pois = res[6,1]
+	local p_uni_pois = res[4,1]
+	
+	local coef_uni_zi = exp(res[1,3])
+	local lci_uni_zi = exp(res[5,3])	
+	local uci_uni_zi = exp(res[6,3])
+	local p_uni_zi = res[4,3]
+	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_uni = r(S)[1,5]
+	local bic_uni = r(S)[1,6]
+	
+	
+	** Multivariable analysis	
+	zinb total_actions `var' i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge, inflate(`var' i.sex ageAtBirth i.home i.edu i.imd i.ethnic offspringAge) irr
+	
+	* Store coefficients
+	matrix res = r(table)
+	
+	local coef_mult_pois = res[1,1]
+	local lci_mult_pois = res[5,1]	
+	local uci_mult_pois = res[6,1]
+	local p_mult_pois = res[4,1]
+	
+	local coef_mult_zi = exp(res[1,23])
+	local lci_mult_zi = exp(res[5,23])	
+	local uci_mult_zi = exp(res[6,23])
+	local p_mult_zi = res[4,23]
+	
+	* Store model fit (AIC and BIC)
+	estat ic
+	local aic_mult = r(S)[1,5]
+	local bic_mult = r(S)[1,6]
+	
+	** Post these summary results to the file
+	post totalActions_zinb ("`exp'") ("`out'") (`n') /// 
+		(`coef_uni_pois') (`lci_uni_pois') (`uci_uni_pois') (`p_uni_pois') ///
+		(`coef_uni_zi') (`lci_uni_zi') (`uci_uni_zi') (`p_uni_zi') ///
+		(`aic_uni') (`bic_uni') ///
+		(`coef_mult_pois') (`lci_mult_pois') (`uci_mult_pois') ///
+		(`p_mult_pois') (`coef_mult_zi') (`lci_mult_zi') (`uci_mult_zi') ///
+		(`p_mult_zi') (`aic_mult') (`bic_mult')
+				
+}
+
+postclose totalActions_zinb
+
+* Check results
+use ".\Results\totalActions_zinb.dta", clear
+
+export delimited using ".\Results\totalActions_zinb.csv", replace
 
 
 ******* Clear data and close log file
